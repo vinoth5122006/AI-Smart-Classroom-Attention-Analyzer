@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Student Telemetry Monitor &bull; Synapse AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%232563EB'/><path d='M50 22 L76 36 L76 54 C76 68 64 78 50 82 C36 78 24 68 24 54 L24 36 Z' fill='none' stroke='white' stroke-width='6'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-canvas: #090D16;
+      --bg-surface: #0F172A;
+      --bg-card: #141E33;
+      --bg-card-hover: #192640;
+      --bg-inset: #1E293B;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(59, 130, 246, 0.5);
+      --text-main: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --brand-primary: #2563EB;
+      --brand-primary-hover: #1D4ED8;
+      --status-success: #16A34A;
+      --status-success-bg: rgba(22, 163, 74, 0.14);
+      --status-warning: #D97706;
+      --status-warning-bg: rgba(217, 119, 6, 0.14);
+      --status-danger: #DC2626;
+      --status-danger-bg: rgba(220, 38, 38, 0.14);
+      --status-info: #0284C7;
+      --status-info-bg: rgba(2, 132, 199, 0.14);
+      --status-purple: #7C3AED;
+      --status-purple-bg: rgba(124, 58, 237, 0.14);
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body.theme-light {
+      --bg-canvas: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #F1F5F9;
+      --bg-inset: #F1F5F9;
+      --border-subtle: #E2E8F0;
+      --border-focus: #2563EB;
+      --text-main: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --brand-primary: #2563EB;
+      --brand-primary-hover: #1D4ED8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      font-size: 13px;
+      line-height: 1.5;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .back-btn:hover { color: var(--text-main); border-color: var(--border-focus); }
+
+    .student-title-badge {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: var(--status-success-bg);
+      color: var(--status-success);
+      border: 1px solid rgba(22, 163, 74, 0.25);
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Main Monitor Layout: Split Grid */
+    main.monitor-container {
+      flex: 1;
+      padding: 24px 28px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1050px) {
+      main.monitor-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 22px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Video Viewport */
+    .viewport-box {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      background: #020617;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 18px;
+    }
+
+    #studentLiveImage {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-overlay-state {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      backdrop-filter: blur(4px);
+    }
+
+    .video-overlay-hud {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      right: 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      backdrop-filter: blur(4px);
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .hud-item { display: flex; flex-direction: column; }
+    .hud-label { color: var(--text-secondary); font-size: 9.5px; text-transform: uppercase; }
+    .hud-val { font-weight: 700; color: var(--text-main); margin-top: 2px; }
+
+    /* Right Column: Score & Detailed Metrics */
+    .primary-gauge-card {
+      background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    .gauge-wrapper {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .gauge-svg {
+      transform: rotate(-90deg);
+      width: 110px;
+      height: 110px;
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: var(--bg-inset);
+      stroke-width: 9;
+    }
+
+    .gauge-meter {
+      fill: none;
+      stroke: #16A34A;
+      stroke-width: 9;
+      stroke-linecap: round;
+      stroke-dasharray: 276;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.4s;
+    }
+
+    .gauge-text {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    /* Detailed Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-box {
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-top: 6px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      gap: 8px;
+    }
+    .btn-primary { background: var(--brand-primary); color: white; }
+    .btn-primary:hover { background: var(--brand-primary-hover); }
+    .btn-secondary { background: var(--bg-inset); color: var(--text-main); border-color: var(--border-subtle); }
+    .btn-secondary:hover { background: #283548; }
+
+    #toastContainer {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 2000;
+    }
+    .toast {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-section">
+      <a href="javascript:window.close()" class="back-btn">&larr; Close / Return</a>
+      <div class="student-title-badge">
+        <span id="dispHeaderName">Student Monitor</span>
+        <span id="dispHeaderMeta" style="font-size: 12px; font-weight: 600; color: var(--text-secondary); font-family: var(--font-mono);">(Loading...)</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-pill">
+        <span class="pulse-dot"></span>
+        <span id="streamStatus">STREAM ACTIVE</span>
+      </div>
+      <button class="btn btn-primary" onclick="downloadStudentPdf()">
+        <span></span> Download Report (PDF)
+      </button>
+      <button class="btn btn-secondary" onclick="downloadStudentCsv()">
+        <span></span> Export CSV
+      </button>
+    </div>
+  </header>
+
+  <main class="monitor-container">
+    <!-- LEFT COLUMN: LIVE VISUAL INPUT & MINI TIMELINE -->
+    <div>
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>Real-Time Student Visual Feed</span>
+          <span id="feedFps" style="font-family: var(--font-mono); color: var(--status-success);">FPS: --</span>
+        </div>
+
+        <div class="viewport-box">
+          <img id="studentLiveImage" src="" alt="Waiting for student camera feed...">
+          <div id="videoPlaceholder" style="position: absolute; text-align: center; color: var(--text-muted); font-family: var(--font-mono);">
+            <div>WAITING FOR STUDENT STREAM...</div>
+            <div style="font-size: 11px; margin-top: 6px; color: var(--text-secondary);">Student camera frames will render here automatically</div>
+          </div>
+          <div id="overlayState" class="video-overlay-state" style="color: var(--status-success);">ATTENTIVE</div>
+          
+          <div class="video-overlay-hud">
+            <div class="hud-item">
+              <span class="hud-label">Gaze Vector</span>
+              <span id="hudGaze" class="hud-val">FORWARD</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">Ocular Status</span>
+              <span id="hudEyes" class="hud-val" style="color: var(--status-success);">OPEN</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">Blink Frequency</span>
+              <span id="hudBlinks" class="hud-val">0</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">Device Presence</span>
+              <span id="hudPhone" class="hud-val" style="color: var(--status-success);">ABSENT</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; background: var(--bg-inset); padding: 12px 16px; border-radius: 8px;">
+          <span style="font-weight: 700; color: var(--text-main);">Current Behavioral Diagnostic:</span>
+          <span id="dispBehaviorReason">Awaiting telemetry frames...</span>
+        </div>
+      </div>
+
+      <!-- Real-Time Attention Timeline Mini-Chart -->
+      <div class="card">
+        <div class="card-title">
+          <span>Student Attention Score Timeline</span>
+          <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">WINDOW: 60 SECONDS</span>
+        </div>
+        <div style="height: 180px; position: relative;">
+          <canvas id="studentTimelineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: COMPREHENSIVE ATTENTION & ACTIVITY METRICS -->
+    <div>
+      <!-- Primary Score Gauge -->
+      <div class="primary-gauge-card">
+        <div class="gauge-wrapper">
+          <svg class="gauge-svg" viewBox="0 0 100 100">
+            <circle class="gauge-bg" cx="50" cy="50" r="44"/>
+            <circle id="primaryGaugeMeter" class="gauge-meter" cx="50" cy="50" r="44"/>
+          </svg>
+          <span id="dispScoreBig" class="gauge-text">--%</span>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Real-Time Attention Score</div>
+          <div id="dispStateName" style="font-size: 24px; font-weight: 800; color: var(--status-success); margin: 4px 0;">ATTENTIVE</div>
+          <div id="dispConfidenceText" style="font-size: 12px; color: var(--text-secondary);">Model Confidence: 95%</div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">Sensory Signals &amp; Activity Breakdown</div>
+        
+        <div class="metrics-grid">
+          <!-- Drowsiness / Sleep Time -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Sleeping / Drowsy Time</span>
+            </div>
+            <div id="valSleepingTime" class="metric-val" style="color: var(--status-danger);">0s</div>
+            <div id="valDrowsyCount" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">0 incidents recorded</div>
+          </div>
+
+          <!-- Phone Detection -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Phone Usage Detection</span>
+            </div>
+            <div id="valPhoneStatus" class="metric-val" style="color: var(--status-success); font-size: 18px;">NOT DETECTED</div>
+            <div id="valPhoneTime" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Duration: 0s</div>
+          </div>
+
+          <!-- Blink Count -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Cumulative Blink Count</span>
+            </div>
+            <div id="valBlinkCount" class="metric-val">0</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Normal rate: 12-20/min</div>
+          </div>
+
+          <!-- Reading Duration -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Reading Time</span>
+            </div>
+            <div id="valReadingTime" class="metric-val" style="color: var(--status-info);">0s</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Gaze forward/downward</div>
+          </div>
+
+          <!-- Taking Notes Duration -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Taking Notes Time</span>
+            </div>
+            <div id="valNotesTime" class="metric-val" style="color: var(--status-purple);">0s</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Active handwriting posture</div>
+          </div>
+
+          <!-- Left Head Movement -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Left Head Movement</span>
+            </div>
+            <div id="valLeftTime" class="metric-val" style="color: var(--status-warning);">0s</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Lateral deviation</div>
+          </div>
+
+          <!-- Right Head Movement -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Right Head Movement</span>
+            </div>
+            <div id="valRightTime" class="metric-val" style="color: var(--status-warning);">0s</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Lateral deviation</div>
+          </div>
+
+          <!-- Upward Gaze -->
+          <div class="metric-box">
+            <div class="metric-label">
+              <span></span> <span>Upward Gaze Time</span>
+            </div>
+            <div id="valUpTime" class="metric-val" style="color: var(--status-warning);">0s</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Ceiling / distraction gaze</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" style="flex: 1;" onclick="downloadStudentPdf()">
+            <span></span> Download Full Assessment Report (PDF)
+          </button>
+          <button class="btn btn-secondary" onclick="downloadStudentCsv()">
+            <span></span> Export CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toastContainer"></div>
+
+  <script>
+    // Parse params from URL path: /monitor/{room_code}/{student_id} or query string
+    const urlParts = window.location.pathname.split('/').filter(Boolean);
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    let roomCode = searchParams.get('room') || (urlParts[1] || "CS-101").toUpperCase();
+    let studentId = searchParams.get('student') || (urlParts[2] || "STU-001");
+
+    let monitorWs = null;
+    let timelineChart = null;
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>ℹ</span> <span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      connectMonitorWs();
+      // Load initial data via REST API
+      fetchStudentData();
+    });
+
+    function initChart() {
+      const ctx = document.getElementById('studentTimelineChart').getContext('2d');
+      timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#2563EB',
+            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+            fill: true,
+            tension: 0.2,
+            borderWidth: 2,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              min: 0, max: 100,
+              ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 } },
+              grid: { color: 'rgba(255, 255, 255, 0.05)' }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    async function fetchStudentData() {
+      try {
+        const res = await fetch(`/api/classrooms/${roomCode}/students/${studentId}`);
+        if (res.ok) {
+          const data = await res.json();
+          updateStudentUI(data.student);
+        }
+      } catch(e) {}
+    }
+
+    function connectMonitorWs() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/monitor/${roomCode}/${studentId}`;
+      
+      monitorWs = new WebSocket(wsUrl);
+      monitorWs.onopen = () => {
+        document.getElementById('streamStatus').textContent = "STREAM CONNECTED";
+      };
+      monitorWs.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.student) {
+          updateStudentUI(msg.student);
+        }
+      };
+      monitorWs.onclose = () => {
+        document.getElementById('streamStatus').textContent = "RECONNECTING...";
+        setTimeout(connectMonitorWs, 2000);
+      };
+    }
+
+    function updateStudentUI(student) {
+      if (!student) return;
+
+      document.getElementById('dispHeaderName').textContent = student.student_name || "Student";
+      document.getElementById('dispHeaderMeta').textContent = `${student.student_id} &bull; ${student.desk_position} &bull; Room ${roomCode}`;
+
+      // Score
+      const score = Math.round(student.attention_score);
+      document.getElementById('dispScoreBig').textContent = `${score}%`;
+
+      const scoreColor = score >= 80 ? '#16A34A' : (score >= 60 ? '#D97706' : '#DC2626');
+      
+      // Animated Circular Gauge
+      const meter = document.getElementById('primaryGaugeMeter');
+      const circumference = 2 * Math.PI * 44; // 276.4
+      const offset = circumference - (score / 100) * circumference;
+      meter.style.strokeDashoffset = offset;
+      meter.style.stroke = scoreColor;
+
+      // State
+      const stateEl = document.getElementById('dispStateName');
+      stateEl.textContent = student.current_state;
+      stateEl.style.color = scoreColor;
+
+      const overlayState = document.getElementById('overlayState');
+      overlayState.textContent = student.current_state;
+      overlayState.style.color = scoreColor;
+
+      document.getElementById('dispConfidenceText').textContent = `Model Classification Confidence: ${student.confidence || 95}%`;
+      document.getElementById('dispBehaviorReason').textContent = student.reason || "";
+
+      // Image Thumbnail Feed
+      if (student.thumbnail) {
+        document.getElementById('studentLiveImage').src = student.thumbnail;
+        document.getElementById('studentLiveImage').style.display = 'block';
+        document.getElementById('videoPlaceholder').style.display = 'none';
+      }
+
+      // HUD
+      document.getElementById('hudGaze').textContent = student.head_direction || "FORWARD";
+      document.getElementById('hudEyes').textContent = student.eye_status || "OPEN";
+      document.getElementById('hudEyes').style.color = student.eye_status === 'CLOSED' ? '#DC2626' : '#16A34A';
+      document.getElementById('hudBlinks').textContent = student.blink_count || 0;
+      
+      const phoneDetected = student.phone_detected;
+      document.getElementById('hudPhone').textContent = phoneDetected ? "DETECTED" : "ABSENT";
+      document.getElementById('hudPhone').style.color = phoneDetected ? '#DC2626' : '#16A34A';
+
+      // Durations
+      const stats = student.stats || {};
+      const dur = stats.state_durations || {};
+
+      const sleepSec = Math.round(dur.DROWSY || 0);
+      document.getElementById('valSleepingTime').textContent = `${sleepSec}s`;
+      document.getElementById('valDrowsyCount').textContent = `${stats.drowsiness_count || 0} drowsiness incidents`;
+
+      document.getElementById('valPhoneStatus').textContent = phoneDetected ? "DETECTED" : "NOT DETECTED";
+      document.getElementById('valPhoneStatus').style.color = phoneDetected ? '#DC2626' : '#16A34A';
+      document.getElementById('valPhoneTime').textContent = `Total phone duration: ${Math.round(dur.USING_PHONE || 0)}s`;
+
+      document.getElementById('valBlinkCount').textContent = student.blink_count || 0;
+      document.getElementById('valReadingTime').textContent = `${Math.round(dur.READING || 0)}s`;
+      document.getElementById('valNotesTime').textContent = `${Math.round(dur.TAKING_NOTES || 0)}s`;
+      document.getElementById('valLeftTime').textContent = `${Math.round(dur.LOOKING_LEFT || 0)}s`;
+      document.getElementById('valRightTime').textContent = `${Math.round(dur.LOOKING_RIGHT || 0)}s`;
+      document.getElementById('valUpTime').textContent = `${Math.round(dur.LOOKING_UP || 0)}s`;
+
+      // Timeline Chart Update
+      if (timelineChart) {
+        const labels = timelineChart.data.labels;
+        const data = timelineChart.data.datasets[0].data;
+        labels.push('');
+        data.push(score);
+        if (data.length > 60) {
+          labels.shift();
+          data.shift();
+        }
+        timelineChart.update();
+      }
+
+      // FPS Counter
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        const fps = (frameCount * 1000) / (now - lastFpsTime);
+        document.getElementById('feedFps').textContent = `FPS: ${fps.toFixed(1)}`;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+    }
+
+    function downloadStudentPdf() {
+      window.open(`/api/classrooms/${roomCode}/students/${studentId}/export/pdf`, '_blank');
+    }
+
+    function downloadStudentCsv() {
+      window.open(`/api/classrooms/${roomCode}/students/${studentId}/export/csv`, '_blank');
+    }
+  </script>
+</body>
+</html>

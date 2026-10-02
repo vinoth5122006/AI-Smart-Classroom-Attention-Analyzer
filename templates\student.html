@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Classroom Portal &bull; Synapse AI Focus</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%232563EB'/><path d='M50 22 L76 36 L76 54 C76 68 64 78 50 82 C36 78 24 68 24 54 L24 36 Z' fill='none' stroke='white' stroke-width='6'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg-canvas: #090D16;
+      --bg-surface: #0F172A;
+      --bg-card: #141E33;
+      --bg-card-hover: #192640;
+      --bg-inset: #1E293B;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(59, 130, 246, 0.5);
+      --text-main: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --brand-primary: #2563EB;
+      --brand-primary-hover: #1D4ED8;
+      --status-success: #16A34A;
+      --status-success-bg: rgba(22, 163, 74, 0.12);
+      --status-warning: #D97706;
+      --status-danger: #DC2626;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    /* Light Mode */
+    body.theme-light {
+      --bg-canvas: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #F1F5F9;
+      --bg-inset: #F1F5F9;
+      --border-subtle: #E2E8F0;
+      --border-focus: #2563EB;
+      --text-main: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --brand-primary: #2563EB;
+      --brand-primary-hover: #1D4ED8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #2563EB, #7C3AED);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .brand-name {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .theme-toggle-btn:hover { color: var(--text-main); }
+
+    /* Student Portal Card */
+    .portal-card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      position: relative;
+      margin-top: 50px;
+    }
+
+    .portal-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .portal-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text-main);
+      font-size: 14px;
+      font-family: var(--font-body);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--brand-primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: var(--brand-primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn:hover { background: var(--brand-primary-hover); }
+    .btn:active { transform: scale(0.99); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Active Session Screen (Distraction-Free) */
+    .session-view {
+      display: none;
+      text-align: center;
+    }
+
+    .classroom-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--status-success-bg);
+      color: var(--status-success);
+      border: 1px solid rgba(22, 163, 74, 0.3);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 20px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-success);
+      box-shadow: 0 0 10px var(--status-success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .class-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .instructor-name {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      margin-bottom: 28px;
+    }
+
+    /* Minimal Focus Canvas Indicator */
+    .focus-card {
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+
+    .focus-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+    }
+    .focus-item:last-child { border-bottom: none; }
+    .focus-item .label { color: var(--text-secondary); font-weight: 500; }
+    .focus-item .val { font-family: var(--font-mono); font-weight: 600; color: var(--text-main); }
+
+    /* Hidden / Optional video preview */
+    .camera-container {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+    #studentVideo { display: none; }
+    #studentCanvas { width: 100%; height: 100%; object-fit: cover; }
+
+    .toggle-camera-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.2s;
+    }
+    .toggle-camera-btn:hover { color: var(--text-main); border-color: var(--border-focus); }
+
+    .exit-btn {
+      background: transparent;
+      color: var(--status-danger);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.2s;
+    }
+    .exit-btn:hover { background: rgba(220, 38, 38, 0.1); }
+
+    /* Toast System */
+    #toastContainer {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toast {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideIn 0.2s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(30px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">&bull;</div>
+      <span class="brand-name">Synapse AI Classroom</span>
+    </div>
+    <div class="top-controls">
+      <button class="theme-toggle-btn" onclick="toggleTheme()">
+        <span id="themeIcon">&#9790;</span> <span id="themeLabel">Theme</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Login Form View -->
+  <div id="joinView" class="portal-card">
+    <h1 class="portal-title">Join Live Lecture</h1>
+    <p class="portal-desc">
+      Enter your student credentials to join the classroom session. Your video stays private on your device; only behavioral telemetry is verified by the instructor.
+    </p>
+
+    <div class="form-group">
+      <label class="form-label">Classroom Room Code</label>
+      <input type="text" id="inputRoomCode" class="form-input" placeholder="e.g. CS-101" value="" style="text-transform: uppercase;">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Your Full Name</label>
+      <input type="text" id="inputStudentName" class="form-input" placeholder="e.g. Liam Gallagher">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Desk / Seat Identifier</label>
+      <input type="text" id="inputDesk" class="form-input" placeholder="e.g. Desk B-04" value="Desk A-01">
+    </div>
+
+    <button id="joinBtn" class="btn" onclick="joinClassroom()">
+      <span>Connect &amp; Enter Classroom</span> &rarr;
+    </button>
+  </div>
+
+  <!-- Active Distraction-Free Classroom Screen -->
+  <div id="sessionView" class="portal-card session-view">
+    <div class="classroom-badge">
+      <span class="pulse-dot"></span>
+      <span>CONNECTED &bull; TELEMETRY ACTIVE</span>
+    </div>
+
+    <h2 id="dispClassTitle" class="class-title">Computer Science Lecture</h2>
+    <div id="dispInstructor" class="instructor-name">Instructor: Prof. Elena Vance &bull; Room <span id="dispRoom">CS-101</span></div>
+
+    <div class="focus-card">
+      <div class="focus-item">
+        <span class="label">Student Name</span>
+        <span id="dispStudentName" class="val">Liam Gallagher</span>
+      </div>
+      <div class="focus-item">
+        <span class="label">Assigned Desk</span>
+        <span id="dispDesk" class="val">B-04</span>
+      </div>
+      <div class="focus-item">
+        <span class="label">Telemetry Pipeline</span>
+        <span id="dispSensorStatus" class="val" style="color: var(--status-success);">In-Browser Edge AI Active</span>
+      </div>
+      <div class="focus-item">
+        <span class="label">Local Mesh Latency</span>
+        <span id="dispFps" class="val">-- FPS</span>
+      </div>
+      <div class="focus-item">
+        <span class="label">Session Timer</span>
+        <span id="dispTimer" class="val">00:00:00</span>
+      </div>
+    </div>
+
+    <!-- Optional Camera Preview Toggle -->
+    <button class="toggle-camera-btn" onclick="toggleCameraPreview()">Toggle Local Camera Preview</button>
+    
+    <div id="cameraPreviewContainer" class="camera-container">
+      <video id="studentVideo" autoplay playsinline muted></video>
+      <canvas id="studentCanvas" width="320" height="240"></canvas>
+    </div>
+
+    <div>
+      <button class="exit-btn" onclick="leaveClassroom()">Disconnect from Classroom</button>
+    </div>
+  </div>
+
+  <div id="toastContainer"></div>
+
+  <script>
+    // State
+    let roomCode = "";
+    let studentId = "";
+    let studentName = "";
+    let deskPosition = "";
+    let ws = null;
+    let camera = null;
+    let faceMesh = null;
+    let isConnected = false;
+    let sessionStartMs = 0;
+    let timerInterval = null;
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+    let currentFps = 0.0;
+    let blinkCount = 0;
+    let closedFrames = 0;
+    let showCameraPreview = false;
+    let lastSnapshotTime = 0;
+
+    const EAR_THRESHOLD = 0.22;
+    const CONSEC_FRAMES = 3;
+    const LEFT_EYE_IDX = [33, 160, 158, 133, 153, 144];
+    const RIGHT_EYE_IDX = [362, 385, 387, 263, 373, 380];
+
+    const videoEl = document.getElementById('studentVideo');
+    const canvasEl = document.getElementById('studentCanvas');
+    const canvasCtx = canvasEl.getContext('2d');
+
+    // Auto-fill room code from URL params: /join?room=CS-101
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const r = urlParams.get('room');
+      if (r) {
+        document.getElementById('inputRoomCode').value = r.toUpperCase();
+      }
+      // Load saved theme
+      if (localStorage.getItem('synapse_theme') === 'light') {
+        document.body.classList.add('theme-light');
+        document.getElementById('themeIcon').innerHTML = '&#9788;';
+      }
+    });
+
+    function showToast(msg, type = "info") {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>${type === 'error' ? '' : 'ℹ'}</span> <span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('theme-light');
+      localStorage.setItem('synapse_theme', isLight ? 'light' : 'dark');
+      document.getElementById('themeIcon').innerHTML = isLight ? '&#9788;' : '&#9790;';
+    }
+
+    function toggleCameraPreview() {
+      showCameraPreview = !showCameraPreview;
+      document.getElementById('cameraPreviewContainer').style.display = showCameraPreview ? 'block' : 'none';
+    }
+
+    function euclideanDist(p1, p2) {
+      return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    function calculateEAR(landmarks, indices) {
+      const p1 = landmarks[indices[0]], p2 = landmarks[indices[1]], p3 = landmarks[indices[2]],
+            p4 = landmarks[indices[3]], p5 = landmarks[indices[4]], p6 = landmarks[indices[5]];
+      const A = euclideanDist(p2, p6), B = euclideanDist(p3, p5), C = euclideanDist(p1, p4);
+      return (A + B) / (2.0 * C);
+    }
+
+    function estimateHeadDirection(landmarks) {
+      const nose = landmarks[1], leftFace = landmarks[234], rightFace = landmarks[454],
+            forehead = landmarks[10], chin = landmarks[152];
+      const dx = nose.x - (leftFace.x + rightFace.x) / 2;
+      const dy = nose.y - (forehead.y + chin.y) / 2;
+      if (dx > 0.05) return 'RIGHT';
+      if (dx < -0.05) return 'LEFT';
+      if (dy > 0.05) return 'DOWN';
+      if (dy < -0.05) return 'UP';
+      return 'FORWARD';
+    }
+
+    async function joinClassroom() {
+      roomCode = document.getElementById('inputRoomCode').value.trim().toUpperCase();
+      studentName = document.getElementById('inputStudentName').value.trim();
+      deskPosition = document.getElementById('inputDesk').value.trim() || 'A-01';
+
+      if (!roomCode) {
+        showToast("Please enter a valid room code.", "error");
+        return;
+      }
+      if (!studentName) {
+        showToast("Please enter your name.", "error");
+        return;
+      }
+
+      studentId = "STU-" + Math.floor(100 + Math.random() * 900);
+      const joinBtn = document.getElementById('joinBtn');
+      joinBtn.disabled = true;
+      joinBtn.textContent = "Initializing Sensors...";
+
+      try {
+        // 1. Initialize FaceMesh
+        faceMesh = new FaceMesh({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+        faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        faceMesh.onResults(onStudentMeshResults);
+
+        // 2. Initialize Camera with Mobile Front Camera Support
+        videoEl.setAttribute('playsinline', '');
+        videoEl.setAttribute('webkit-playsinline', '');
+        videoEl.playsInline = true;
+
+        try {
+          camera = new Camera(videoEl, {
+            onFrame: async () => {
+              if (isConnected) {
+                await faceMesh.send({ image: videoEl });
+              }
+            },
+            width: 320,
+            height: 240,
+            facingMode: 'user'
+          });
+          await camera.start();
+        } catch (camErr) {
+          // Direct native WebRTC stream fallback for mobile iOS / Android
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
+            audio: false
+          });
+          videoEl.srcObject = stream;
+          await videoEl.play();
+          
+          const processFrameLoop = async () => {
+            if (isConnected && videoEl.readyState >= 2) {
+              await faceMesh.send({ image: videoEl });
+            }
+            if (isConnected) requestAnimationFrame(processFrameLoop);
+          };
+          requestAnimationFrame(processFrameLoop);
+        }
+
+        // 3. Connect WebSocket
+        initStudentWebSocket();
+
+        // Switch to session view
+        document.getElementById('joinView').style.display = 'none';
+        document.getElementById('sessionView').style.display = 'block';
+        document.getElementById('dispStudentName').textContent = studentName;
+        document.getElementById('dispDesk').textContent = deskPosition;
+        document.getElementById('dispRoom').textContent = roomCode;
+
+        sessionStartMs = Date.now();
+        timerInterval = setInterval(updateSessionTimer, 1000);
+        isConnected = true;
+        showToast("Successfully connected to classroom!", "info");
+
+      } catch (err) {
+        console.error("Camera acquisition failed:", err);
+        joinBtn.disabled = false;
+        joinBtn.innerHTML = "<span>Connect &amp; Enter Classroom</span> &rarr;";
+        showToast("Camera access required for telemetry: " + err.message, "error");
+      }
+    }
+
+    function initStudentWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/student/${roomCode}/${studentId}?name=${encodeURIComponent(studentName)}&desk=${encodeURIComponent(deskPosition)}`;
+      
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        document.getElementById('dispSensorStatus').textContent = "Connected & Streaming";
+        document.getElementById('dispSensorStatus').style.color = "var(--status-success)";
+      };
+      ws.onclose = () => {
+        document.getElementById('dispSensorStatus').textContent = "Disconnected (Reconnecting...)";
+        document.getElementById('dispSensorStatus').style.color = "var(--status-danger)";
+        if (isConnected) {
+          setTimeout(initStudentWebSocket, 2000);
+        }
+      };
+    }
+
+    function onStudentMeshResults(results) {
+      if (!isConnected) return;
+
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
+
+      let faceDetected = false;
+      let direction = 'FORWARD';
+      let eyeStatus = 'OPEN';
+
+      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        faceDetected = true;
+        const landmarks = results.multiFaceLandmarks[0];
+        direction = estimateHeadDirection(landmarks);
+
+        const leftEAR = calculateEAR(landmarks, LEFT_EYE_IDX);
+        const rightEAR = calculateEAR(landmarks, RIGHT_EYE_IDX);
+        const ear = (leftEAR + rightEAR) / 2;
+
+        if (ear < EAR_THRESHOLD) {
+          closedFrames++;
+        } else {
+          if (closedFrames >= CONSEC_FRAMES) blinkCount++;
+          closedFrames = 0;
+        }
+        eyeStatus = closedFrames >= CONSEC_FRAMES ? 'CLOSED' : 'OPEN';
+      }
+      canvasCtx.restore();
+
+      // Transmit to teacher
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const payload = {
+          face_detected: faceDetected,
+          head_direction: direction,
+          eye_status: eyeStatus,
+          phone_detected: false,
+          blink_count: blinkCount,
+          timestamp: Date.now() / 1000
+        };
+
+        // Capture lightweight thumbnail snapshot every 750ms for smooth live monitoring
+        const nowMs = performance.now();
+        if (nowMs - lastSnapshotTime > 750) {
+          try {
+            payload.thumbnail = canvasEl.toDataURL('image/jpeg', 0.55);
+            lastSnapshotTime = nowMs;
+          } catch(e) {}
+        }
+
+        ws.send(JSON.stringify(payload));
+      }
+
+      // FPS tracking
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        currentFps = (frameCount * 1000) / (now - lastFpsTime);
+        document.getElementById('dispFps').textContent = `${currentFps.toFixed(0)} FPS`;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+    }
+
+    function updateSessionTimer() {
+      const sec = Math.floor((Date.now() - sessionStartMs) / 1000);
+      const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      document.getElementById('dispTimer').textContent = `${h}:${m}:${s}`;
+    }
+
+    function leaveClassroom() {
+      isConnected = false;
+      if (ws) ws.close();
+      if (camera) {
+        try { camera.stop(); } catch(e) {}
+      }
+      if (timerInterval) clearInterval(timerInterval);
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>
