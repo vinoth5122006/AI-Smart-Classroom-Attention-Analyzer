@@ -34,3 +34,14 @@ cloudflared.exe
 # Local database & data
 data/
 *.db
+
+# ML model weights (large binary files - not suitable for git)
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.bin
+
+# Generated reports
+reports/*.html
+reports/*.csv

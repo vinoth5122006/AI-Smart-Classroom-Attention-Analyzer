@@ -55,7 +55,47 @@ python web_app.py
 
 ---
 
+## How the Multi-Student Classroom Works
 
+```
+                        +-------------------------------------------------------+
+                        | STUDENT DEVICES |
+                        | (Laptops, Tablets, Phones via /join?room=CS-101) |
+                        +-------------------------------------------------------+
+                                   | |
+           MediaPipe Edge Mesh | | MediaPipe Edge Mesh
+           (Local Camera Sensor) | | (Local Camera Sensor)
+                                   v v
+                        [WebSocket: /ws/student/CS-101/STU-1] [WebSocket: /ws/student/CS-101/STU-2]
+                                   \ /
+                                    \ /
+                                     v v
+                        +-------------------------------------------------------+
+                        | FASTAPI CLASSROOM ENGINE |
+                        | - Per-Student Attention Engine State Machine |
+                        | - Aggregated Cohort Telemetry Broker |
+                        | - SQLite Session & Audit Persistence |
+                        +-------------------------------------------------------+
+                                                   |
+                                     WebSocket: /ws/admin/CS-101
+                                                   |
+                                                   v
+                        +-------------------------------------------------------+
+                        | INSTRUCTOR CONSOLE |
+                        | - Live Student Roster Cards with Attention Dials |
+                        | - Classroom Seating Heatmap Visualizer |
+                        | - Audio Chime Alerts for Drowsiness & Phone Usage |
+                        | - One-Click PDF, Excel, and CSV Report Generator |
+                        +-------------------------------------------------------+
+```
+
+1. **Instructor launches the console:** Navigates to `http://localhost:8000`, copies the student invite link or displays the room code (`CS-101`).
+2. **Students open the invite link:** In any standard web browser (Chrome, Edge, Safari, Firefox). Students enter their name and desk identifier.
+3. **Edge AI Activation:** The student's browser requests webcam access and runs MediaPipe FaceMesh locally. Only numerical telemetry (gaze vector, ocular openness, blink frequency) is streamed over WebSocket.
+4. **Instructor Observability:** The instructor's dashboard updates in real time, displaying student cards with animated dials, classroom seating heatmap, and behavioral classification.
+5. **Session Finalization:** Clicking "Stop Session" commits attendance records and telemetry to SQLite and enables instant download of executive PDF reports.
+
+---
 
 ## Keyboard Shortcuts
 
@@ -70,5 +110,53 @@ python web_app.py
 
 ---
 
+## Cloud Deployment Guide
 
+### Option 1: Hugging Face Spaces (100% Free Docker Hosting)
+1. Fork or push this repository to GitHub.
+2. Go to [Hugging Face Spaces](https://huggingface.co/spaces) and click **Create new Space**.
+3. Choose **Docker** as Space SDK (Blank).
+4. Connect your repo. Hugging Face automatically detects the `Dockerfile` on port `7860`.
+
+### Option 2: Render (Free Web Service)
+1. In [Render Dashboard](https://dashboard.render.com), click **New +** &rarr; **Web Service**.
+2. Select your repository. Environment: **Docker**.
+3. Render automatically provisions HTTPS and binds `$PORT`.
+
+### Option 3: Google Cloud Run / AWS App Runner / Railway
+```bash
+docker build -t synapse-ai-classroom .
+docker run -p 8000:7860 synapse-ai-classroom
+```
+
+---
+
+## Repository Structure
+
+```text
+AI-Smart-Classroom-Attention-Analyzer/
+├── app.py # Master launcher (supports Web and Desktop GUI)
+├── web_app.py # Enterprise FastAPI + WebSockets application server
+├── dashboard.py # Desktop GUI module (CustomTkinter)
+├── Dockerfile # Multi-stage production container configuration
+├── render.yaml # 1-click cloud deployment specification
+├── requirements-web.txt # Lightweight cloud dependencies
+├── requirements.txt # Full local dependencies (including YOLO / PyTorch)
+├── .env.example # Environment variables template
+├── .github/
+│ └── workflows/deploy.yml # CI/CD automated lint, test, and container build
+├── templates/
+│ ├── index.html # Flagship Console: Splash intro, landing page, multi-student matrix
+│ └── student.html # Distraction-free student portal
+├── modules/
+│ ├── __init__.py # Package initializer
+│ ├── attention_engine.py # Behavior intelligence state machine & scoring engine
+│ ├── classroom_manager.py # Multi-student room broker & real-time telemetry registry
+│ ├── database.py # SQLite persistence for sessions, attendance, and audit logs
+│ ├── auth.py # Admin HMAC-SHA256 session token authentication
+│ ├── pdf_generator.py # Executive assessment report generator (PDF/Print)
+│ ├── logger.py # Structured JSON & console logger
+│ ├── face_detection.py # Desktop OpenCV/MediaPipe pipeline
+│ └── phone_detector.py # YOLOv8 object detector for phone usage
+└── data/ # Directory for SQLite database (created automatically)
 ```
